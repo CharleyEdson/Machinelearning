@@ -1,0 +1,107 @@
+from pandas.plotting import scatter_matrix
+from matplotlib import pyplot
+from numpy import mean
+from numpy import std
+from pandas import DataFrame
+from pandas import read_csv
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import RepeatedStratifiedKFold
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import RobustScaler
+from sklearn.pipeline import Pipeline
+url = "https://raw.githubusercontent.com/jbrownlee/Datasets/master/sonar.csv"
+dataset = read_csv(url, header=None)
+
+#print(dataset.describe())
+#dataset.hist()
+#pyplot.show()
+
+'''
+
+data = dataset.values
+x, y = data[:,:-1,], data[:,-1]
+x = x.astype('float32')
+y = LabelEncoder().fit_transform(y.astype('str'))
+
+model = KNeighborsClassifier()
+
+cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+n_scores = cross_val_score(model, x, y, scoring='accuracy', cv=cv,  n_jobs=-1, error_score='raise')
+print('Accuracy: %.3f (%.3f)' % (mean(n_scores), std(n_scores)))
+'''
+
+'''
+#Scaling the data
+#data = dataset.values[:,:-1]
+#trans = RobustScaler()
+#data = trans.fit_transform(data)
+#dataset = DataFrame(data)
+
+#print(dataset.describe())
+#dataset.hist() The histograms didn't look too much different than above
+#pyplot.show()
+
+data = dataset.values
+# separate into input and output columns
+X, y = data[:, :-1], data[:, -1]
+# ensure inputs are floats and output is an integer label
+X = X.astype('float32')
+y = LabelEncoder().fit_transform(y.astype('str'))
+# define the pipeline
+trans = RobustScaler(with_centering=False, with_scaling=True)
+model = KNeighborsClassifier()
+pipeline = Pipeline(steps=[('t', trans), ('m', model)])
+# evaluate the pipeline
+cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+n_scores = cross_val_score(pipeline, X, y, scoring='accuracy', cv=cv, n_jobs=-1, error_score='raise')
+# report pipeline performance
+print('Accuracy: %.3f (%.3f)' % (mean(n_scores), std(n_scores)))'''
+
+#this tries all different IQR ranges to see what scores the best
+# get the dataset
+def get_dataset():
+    # load dataset
+    url = "https://raw.githubusercontent.com/jbrownlee/Datasets/master/sonar.csv"
+    dataset = read_csv(url, header=None)
+    data = dataset.values
+    # separate into input and output columns
+    X, y = data[:, :-1], data[:, -1]
+    # ensure inputs are floats and output is an integer label
+    X = X.astype('float32')
+    y = LabelEncoder().fit_transform(y.astype('str'))
+    return X, y
+
+
+# get a list of models to evaluate
+def get_models():
+    models = dict()
+    for value in [1, 5, 10, 15, 20, 25, 30]:
+        # define the pipeline
+        trans = RobustScaler(quantile_range=(value, 100 - value))
+        model = KNeighborsClassifier()
+        models[str(value)] = Pipeline(steps=[('t', trans), ('m', model)])
+    return models
+
+
+# evaluate a give model using cross-validation
+def evaluate_model(model):
+    cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+    scores = cross_val_score(model, X, y, scoring='accuracy', cv=cv, n_jobs=-1, error_score='raise')
+    return scores
+
+
+# define dataset
+X, y = get_dataset()
+# get the models to evaluate
+models = get_models()
+# evaluate the models and store results
+results, names = list(), list()
+for name, model in models.items():
+    scores = evaluate_model(model)
+    results.append(scores)
+    names.append(name)
+    print('>%s %.3f (%.3f)' % (name, mean(scores), std(scores)))
+# plot model performance for comparison
+pyplot.boxplot(results, labels=names, showmeans=True)
+pyplot.show()
