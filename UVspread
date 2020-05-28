@@ -1,0 +1,74 @@
+import pandas as pd
+import matplotlib.pylab as plt
+from pandas.plotting import lag_plot as lag
+from pandas.plotting import autocorrelation_plot as auto_corr
+from statsmodels.tsa.seasonal import seasonal_decompose
+from statsmodels.tsa.ar_model import AutoReg
+from sklearn.metrics import r2_score
+plt.rcParams['figure.figsize'] = (12,6)
+plt.style.use('ggplot')
+
+sep_oct_17 = pd.read_csv('c:\CE Management\Energy\Regression\\Test\\2017_UV_spread_RB.csv',header=0,index_col=0)
+#sep_oct_17.plot()
+#plt.show()
+#check for dependance
+#lag(sep_oct_17['C'])
+#plt.show()
+#looking at autocorrelation plot to see correlations of our data
+#auto_corr((sep_oct_17['C']))
+#plt.show()
+#use peason correlation
+#print(sep_oct_17['C'].corr(sep_oct_17['C'].shift(1)))
+#had to pick a period, if doing monthly data over many years, would use 12(to signify a year of seasonality) this is daily so tough to distinguish
+#decomposed = seasonal_decompose(sep_oct_17['C'], model='additive',period=10)
+#x = decomposed.plot()
+#plt.show()
+
+#differencing to get a more stationary model
+sep_oct_17['C'] = sep_oct_17['C'].diff()
+#sep_oct_17['C'].plot()
+#plt.show()
+
+#new seasonal_decompose on diff
+#decomposed = seasonal_decompose(sep_oct_17['C'], model='additive',period=1)
+#x = decomposed.plot()
+#plt.show()
+
+#create train/test datasets
+X = sep_oct_17['C'].dropna().values
+
+
+#Need to fix the train size
+train_size = int(len(X) * 0.80)
+print(len(X))
+train, test = X[:251], X[251:]
+print(len(train))
+print(len(test))
+#train_X, train_y = train[:,0], train[:,1]
+#test_X, test_y = test[:,0], test[:,1]
+
+
+
+
+#train_data = X[1:len(X)-12]
+#test_data = X[X[len(X)-12:]]
+#train model
+model = AutoReg(train,25)
+model_fitted = model.fit()
+
+
+
+print('The coefficients of the model are: \n %s' % model_fitted.params)
+
+#make predictions
+predictions = model_fitted.predict(start=len(train), end=len(X)-1,dynamic=False)
+yhat = pd.DataFrame(predictions)
+actual = pd.DataFrame(test)
+actual.columns = ['Actual']
+#create a comparison Dataframe
+compare_df = pd.concat((actual,yhat), axis=1).rename(columns={'Actual': 'Actual', 0:'predicted'})
+
+compare_df.plot()
+plt.show()
+r2 = r2_score(actual,yhat)
+print(r2)
